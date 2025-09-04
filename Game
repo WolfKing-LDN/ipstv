@@ -1,0 +1,458 @@
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>ChaseRunner — Versão Pro</title>
+<style>
+:root{
+  --bg:#0b0d1a; --panel:#111827cc; --text:#eef6ff; --accent:#19d3ff; --accent2:#ffb300;
+}
+*{box-sizing:border-box;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;}
+html,body{height:100%;margin:0;background:linear-gradient(180deg,#071025 0%, #081020 60%);}
+#wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:10px}
+canvas{width:100vw;height:100vh;display:block;touch-action:none;border-radius:10px;box-shadow:0 20px 60px #0006}
+.hud{position:fixed;left:8px;right:8px;top:8px;display:flex;gap:.5rem;align-items:center;justify-content:space-between;padding:.25rem;color:var(--text);pointer-events:none}
+.badge{background:var(--panel);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:1px solid #ffffff18;border-radius:12px;padding:.35rem .6rem;display:flex;gap:.5rem;align-items:center;box-shadow:0 6px 20px #0005}
+.controls{position:fixed;left:8px;right:8px;bottom:10px;display:flex;gap:.6rem;justify-content:center;pointer-events:auto}
+.btn{appearance:none;border:none;background:var(--panel);color:var(--text);padding:.8rem 1rem;border-radius:16px;border:1px solid #ffffff10;box-shadow:0 8px 20px #0006;min-width:72px;font-weight:700}
+.btn.small{min-width:54px;padding:.5rem .6rem}
+.menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:1rem;z-index:20}
+.card{width:min(900px,96vw);background:linear-gradient(180deg,#0f1630,#071025);border:1px solid #ffffff14;border-radius:14px;padding:1rem;color:var(--text);box-shadow:0 30px 80px #0009}
+.title{font-size:1.6rem;font-weight:900;margin:.2rem 0 .6rem}
+.row{display:flex;gap:.6rem;align-items:center;justify-content:space-between}
+.muted{color:#9fb0d9}
+.chips{display:flex;gap:.4rem;flex-wrap:wrap}
+.chip{font-size:.85rem;background:#ffffff08;border:1px solid #ffffff14;color:#dfe7ff;border-radius:999px;padding:.25rem .6rem}
+.kbd{font-family:ui-monospace,Menlo,Monaco,Consolas,monospace;background:#081226;border:1px solid #122035;color:#cfe6ff;border-radius:8px;padding:.05rem .4rem}
+.center{display:flex;flex-direction:column;align-items:center;gap:.6rem}
+.small{font-size:.9rem;color:#b9c8e6}
+.footer{font-size:.85rem;color:#9fb0d9;margin-top:.6rem;text-align:center}
+.icon{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#26ffb0);display:inline-flex;align-items:center;justify-content:center;color:#042}
+#skinList{display:flex;gap:.5rem;overflow:auto;padding:.4rem}
+.skin{min-width:120px;background:#081226;border:1px solid #172434;padding:.6rem;border-radius:10px;text-align:center}
+.meter{width:160px;height:10px;border-radius:999px;background:#00000055;border:1px solid #ffffff20;position:relative;overflow:hidden}
+.meter>i{position:absolute;inset:0;--p:35}
+.meter>i::before{content:"";position:absolute;left:0;top:0;bottom:0;width:calc(var(--p)*1%);background:linear-gradient(90deg,#ff9a3c,#ff4d6d)}
+/* small screens */
+@media (max-width:700px){ .card{padding:.8rem} .hud{flex-direction:column;gap:.4rem;align-items:flex-start}}
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="game" role="application" aria-label="Jogo ChaseRunner"></canvas></div>
+
+<!-- HUD -->
+<div class="hud" aria-hidden="true">
+  <div class="badge"><b>ChaseRunner</b></div>
+  <div class="badge small"><span class="muted">Gasolina</span> <div style="width:160px;margin-left:8px" class="meter"><i id="fuelFill" style="--p:100"></i></div></div>
+  <div class="badge small"><span class="muted">Perseguição</span> <div style="width:140px;margin-left:8px" class="meter"><i id="chaseFill" style="--p:20"></i></div></div>
+  <div class="badge">🪙 <span id="coins">0</span></div>
+  <div class="badge">🏁 <span id="score">0</span> m</div>
+  <div class="badge">⭐ Recorde: <b id="best">0</b></div>
+</div>
+
+<!-- Mobile controls -->
+<div class="controls" id="controls">
+  <div style="display:flex;gap:.5rem">
+    <button class="btn small" id="left">⟵</button>
+    <button class="btn small" id="right">⟶</button>
+  </div>
+  <div style="display:flex;gap:.5rem">
+    <button class="btn" id="jump">Pular</button>
+    <button class="btn" id="boost">Turbo</button>
+  </div>
+</div>
+
+<!-- Menus -->
+<div class="menu" id="menu">
+  <div class="card">
+    <div class="title">🚓 ChaseRunner — Versão Pro</div>
+    <div class="row">
+      <div>
+        <div class="chips">
+          <span class="chip">Missões</span>
+          <span class="chip">Power-ups</span>
+          <span class="chip">Skins</span>
+          <span class="chip">Dia/Noite</span>
+          <span class="chip">LocalStorage</span>
+        </div>
+        <div class="small">Colete moedas, complete missões e desbloqueie skins. Use turbo com cuidado!</div>
+      </div>
+      <div class="muted small">Controles: <span class="kbd">←</span> <span class="kbd">→</span> mudar faixa, <span class="kbd">↑</span> pular, <span class="kbd">Shift</span> turbo</div>
+    </div>
+
+    <div style="height:10px"></div>
+    <div class="row" style="align-items:center">
+      <div style="display:flex;flex-direction:column;gap:.4rem">
+        <div class="small">Recorde atual: <b id="bestMenu">0</b></div>
+        <div class="small">Moedas guardadas: <b id="bankMenu">0</b></div>
+      </div>
+      <div>
+        <button class="btn" id="play">Jogar</button>
+        <button class="btn" id="how">Como jogar</button>
+      </div>
+    </div>
+
+    <div style="height:8px"></div>
+    <div style="display:flex;gap:.6rem;align-items:center;justify-content:space-between">
+      <div style="flex:1">
+        <div class="small muted">Skins desbloqueadas</div>
+        <div id="skinList"></div>
+      </div>
+      <div style="width:220px">
+        <div class="small muted">Missões atuais</div>
+        <div style="margin-top:6px" id="missionsBox"></div>
+      </div>
+    </div>
+
+    <div class="footer">Arquivo salvo automaticamente. Boa sorte, Rodrigo! ☔</div>
+  </div>
+</div>
+
+<div class="menu" id="howto" style="display:none;align-items:center">
+  <div class="card" style="max-width:720px">
+    <div class="title">Como jogar</div>
+    <ul>
+      <li>Mude de faixa para evitar carros e buracos.</li>
+      <li>Colete moedas e galões para gasolina.</li>
+      <li>Power-ups: <b>Ímã</b> (atrai moedas), <b>Escudo</b> (protegido por tempo), <b>Turbo</b> (velocidade extra).</li>
+      <li>Complete missões para ganhar mais moedas e desbloquear skins.</li>
+    </ul>
+    <div class="actions" style="display:flex;justify-content:flex-end;margin-top:10px">
+      <button class="btn" id="back">Voltar</button>
+    </div>
+  </div>
+</div>
+
+<div class="menu" id="gameover" style="display:none;align-items:center">
+  <div class="card" style="max-width:640px">
+    <div class="title" id="overTitle">Fim de jogo</div>
+    <div class="row">
+      <div class="muted">Distância: <b><span id="ovrDist">0</span> m</b></div>
+      <div class="muted">Moedas: <b><span id="ovrCoins">0</span></b></div>
+    </div>
+    <div style="height:8px"></div>
+    <div style="display:flex;gap:.6rem;justify-content:flex-end">
+      <button class="btn" id="retry">Jogar de novo</button>
+      <button class="btn" id="home">Menu</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* -------------------------
+   Util & storage
+--------------------------*/
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const rand=(a,b)=>Math.random()*(b-a)+a;
+
+const STORAGE_KEY = "chaser_v2_state";
+function saveState(state){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){} }
+function loadState(){
+  try{
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEY)||"null");
+    return s;
+  }catch(e){ return null; }
+}
+
+/* -------------------------
+   Canvas HiDPI
+--------------------------*/
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W=0,H=0,DPR=1;
+function resize(){
+  DPR = Math.max(1, Math.min(3, window.devicePixelRatio||1));
+  W = Math.floor(innerWidth * DPR);
+  H = Math.floor(innerHeight * DPR);
+  canvas.width=W; canvas.height=H;
+}
+addEventListener('resize', resize); resize();
+
+/* -------------------------
+   Game state & defaults
+--------------------------*/
+const LANES=3;
+const laneX = i=> (W*0.5) + (i-1)*Math.min(W*0.16, 160*DPR);
+
+let game=null, running=false, sfxOn=true, vibrateOn=true;
+
+function makeGame(){
+  const s = {
+    t:0, dt:0, last:performance.now(), playing:false,
+    lane:1, x:0, y: H*0.78, vy:0, onGround:true, jumpT:0,
+    baseSpeed:700, speedMax:1500, speed:700, accel:0.06,
+    gap:120, gapMin:0, gapMax:200,
+    fuel:1.0, coins:0, dist:0,
+    objs:[], spawnT:0, shake:0, wantLane:1, boost:0,
+    power: { magnet:0, shield:0 }, particles:[],
+    skin:'default', unlockedSkins:['default'], bank:0,
+    missions: generateMissions()
+  };
+  s.x = laneX(s.lane);
+  return s;
+}
+
+/* -------------------------
+   Missions generator
+--------------------------*/
+function generateMissions(){
+  // 3 missions: distance, coins, collect
+  return [
+    {id:'dist1', label:'Percorra 800m', type:'dist', target:800, progress:0, reward:50, done:false},
+    {id:'coin1', label:'Colete 40 moedas', type:'coins', target:40, progress:0, reward:40, done:false},
+    {id:'collect1', label:'Use 3 turbos', type:'uses', target:3, progress:0, reward:30, done:false}
+  ];
+}
+
+/* -------------------------
+   Audio simple
+--------------------------*/
+const AC = (window.AudioContext||window.webkitAudioContext)? new (window.AudioContext||window.webkitAudioContext)():null;
+function beep(freq=600, time=0.06, type='sine', vol=0.06){
+  if(!AC || !sfxOn) return;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.value=freq; g.gain.value = vol;
+  o.connect(g).connect(AC.destination); o.start();
+  g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + time);
+  o.stop(AC.currentTime + time);
+}
+
+/* -------------------------
+   Entities & spawn
+--------------------------*/
+const TYPE = { POTHOLE:1, CAR:2, COIN:3, FUEL:4, POWER:5 };
+
+function spawn(type, lane, y){
+  const o = { type, lane, y, z:0 };
+  if(type===TYPE.CAR){
+    o.color = Math.random()<.5? '#ff5b5b' : '#ffd166';
+    o.w = 46*DPR; o.h = 92*DPR; o.speed = rand(0.8,1.2);
+  }else if(type===TYPE.POTHOLE){
+    o.r = 34*DPR;
+  }else if(type===TYPE.COIN){
+    o.r = 18*DPR; o.spin=0;
+  }else if(type===TYPE.FUEL){
+    o.r = 26*DPR; o.wob=0;
+  }else if(type===TYPE.POWER){
+    // choose random powerup
+    const pool = ['magnet','shield','turbo'];
+    o.kind = pool[Math.floor(rand(0,pool.length))];
+    o.r = 22*DPR;
+  }
+  game.objs.push(o);
+}
+
+/* -------------------------
+   Draw helpers
+--------------------------*/
+function roundRect(x,y,w,h,r,fill=true,stroke=false){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); if(fill) ctx.fill(); if(stroke) ctx.stroke(); }
+
+function drawCar(x,y,color,scale=1){
+  const w = 52*DPR*scale, h = 100*DPR*scale;
+  ctx.fillStyle='#0000004D'; ctx.beginPath(); ctx.ellipse(x, y+h*0.6, w*0.7, h*0.25, 0, 0, Math.PI*2); ctx.fill();
+  const grd = ctx.createLinearGradient(x-w/2,y-h/2,x+w/2,y+h/2); grd.addColorStop(0,'#ffffff'); grd.addColorStop(1,color);
+  ctx.fillStyle = grd; roundRect(x-w/2,y-h/2,w,h,12*DPR,true,false);
+  ctx.fillStyle='#98c9ffcc'; roundRect(x-w*0.36,y-h*0.3,w*0.72,h*0.32,10*DPR,true,false);
+  ctx.fillStyle='#ffd166cc'; roundRect(x-w*0.34,y-h*0.48,w*0.26,h*0.12,6*DPR,true,false); roundRect(x+w*0.08,y-h*0.48,w*0.26,h*0.12,6*DPR,true,false);
+  ctx.fillStyle='#1e1e1e'; ctx.fillRect(x-w*0.44,y-h*0.18,w*0.18,h*0.6); ctx.fillRect(x+w*0.26,y-h*0.18,w*0.18,h*0.6);
+}
+
+function drawPolice(x,y){
+  drawCar(x,y,'#3569ff',0.9);
+  ctx.save(); ctx.globalAlpha=0.8+0.2*Math.sin(game.t*10);
+  ctx.fillStyle='#ff4d6d'; roundRect(x-22*DPR,y-60*DPR,20*DPR,16*DPR,4*DPR,true,false);
+  ctx.fillStyle='#19d3ff'; roundRect(x+2*DPR,y-60*DPR,20*DPR,16*DPR,4*DPR,true,false);
+  ctx.restore();
+}
+
+/* -------------------------
+   Road / background
+--------------------------*/
+function drawRoad(){
+  // sky (day-night)
+  const dayPhase = (Math.sin(game.t*0.008)+1)/2; // 0..1 slowly
+  const skyTop = lerp(0.06, 0.0, dayPhase); // just visual tweak
+  const c1 = `rgba(${Math.floor(8+120*dayPhase)},${Math.floor(16+80*dayPhase)},${Math.floor(40+180*dayPhase)},1)`;
+  const c2 = `rgba(${Math.floor(3+30*dayPhase)},${Math.floor(8+30*dayPhase)},${Math.floor(18+40*dayPhase)},1)`;
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0, c1); g.addColorStop(1,c2);
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+
+  const roadW = Math.min(W*0.72, 820*DPR); const roadX = (W-roadW)/2; const laneW = roadW/3;
+  ctx.fillStyle = '#1b203e'; ctx.fillRect(roadX,0,roadW,H);
+  ctx.fillStyle='#2b2f55'; ctx.fillRect(roadX-28*DPR,0,28*DPR,H); ctx.fillRect(roadX+roadW,0,28*DPR,H);
+
+  // dashed lines parallax
+  ctx.lineWidth=6*DPR; ctx.setLineDash([28*DPR,32*DPR]); ctx.strokeStyle = '#ffffff22';
+  for(let i=1;i<LANES;i++){ const x = roadX + i*laneW; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  ctx.setLineDash([]);
+
+  // speed lines
+  const lineH = 36*DPR, gap = 56*DPR, offset = (game.t*game.speed*0.18)%(lineH+gap);
+  ctx.fillStyle = '#ffffff10';
+  for(let y=-offset; y<H; y+=lineH+gap){
+    for(let i=0;i<3;i++){ const x = roadX + i*laneW + laneW*0.5 - 8*DPR; ctx.fillRect(x,y,16*DPR,lineH); }
+  }
+}
+
+/* -------------------------
+   Game loop & collisions
+--------------------------*/
+function reset(){
+  const saved = loadState();
+  game = makeGame();
+  if(saved){
+    game.unlockedSkins = saved.unlockedSkins || ['default'];
+    game.bank = saved.bank || 0;
+    game.skin = saved.skin || 'default';
+  }
+  game.t=0; game.x = laneX(game.lane); game.wantLane = game.lane; game.playing=true; running=true;
+  document.getElementById('menu').style.display='none'; document.getElementById('gameover').style.display='none';
+  if(AC && AC.state==='suspended') AC.resume();
+}
+
+function update(){
+  if(!running||!game) return;
+  const now = performance.now();
+  game.dt = Math.min(1/30, (now - game.last)/1000);
+  game.t += game.dt; game.last = now;
+
+  // lane smoothing
+  game.x = lerp(game.x, laneX(game.wantLane), 1 - Math.pow(0.001, game.dt*60));
+
+  // gravity / jump
+  if(!game.onGround){ game.vy += 2400 * game.dt; game.y += game.vy * game.dt; game.jumpT += game.dt; if(game.y>=H*0.78){ game.y=H*0.78; game.onGround=true; game.vy=0; } }
+
+  // boost / power
+  const boosting = game.boost>0; if(boosting){ game.boost = Math.max(0, game.boost - game.dt); }
+
+  // speed progression
+  const target = (game.baseSpeed + Math.min(1, game.t/45) * (game.speedMax - game.baseSpeed)) * (boosting? 1.35:1);
+  game.speed = lerp(game.speed, target, game.accel);
+
+  // distance & fuel
+  const meters = (game.speed * game.dt) / (80*DPR);
+  game.dist += meters;
+  game.fuel = clamp(game.fuel - (0.007 + (boosting?0.02:0)) * game.dt * (game.speed/900), 0, 1);
+
+  // missions update (distance)
+  for(const m of game.missions){
+    if(!m.done){
+      if(m.type==='dist'){ m.progress = Math.floor(game.dist); if(m.progress>=m.target){ m.done=true; game.coins += m.reward; game.bank += m.reward; beep(1100,0.12,'sine',0.06); } }
+    }
+  }
+
+  // power timers
+  game.power.magnet = Math.max(0, game.power.magnet - game.dt);
+  game.power.shield = Math.max(0, game.power.shield - game.dt);
+
+  // spawn
+  game.spawnT -= game.dt; if(game.spawnT<=0){
+    const lane = Math.floor(rand(0,3));
+    const typeRoll = Math.random();
+    if(typeRoll < 0.46){ spawn(TYPE.CAR, lane, -180*DPR); }
+    else if(typeRoll < 0.78){ spawn(TYPE.POTHOLE, lane, -60*DPR); }
+    else if(typeRoll < 0.9){ spawn(TYPE.COIN, lane, -40*DPR); }
+    else if(typeRoll < 0.96){ spawn(TYPE.FUEL, lane, -60*DPR); }
+    else { spawn(TYPE.POWER, lane, -80*DPR); }
+    const base = 0.72 - Math.min(0.45, game.t*0.012);
+    game.spawnT = base + rand(-0.12,0.12);
+  }
+
+  // objects movement & collision
+  const py = game.y;
+  const pw = 52*DPR, ph = 100*DPR;
+  const pwEff = Math.round(pw * 0.75), phEff = Math.round(ph * 0.85);
+  const px = game.x - pwEff/2, pyTop = py - phEff/2;
+
+  for(let i=game.objs.length-1;i>=0;i--){
+    const o = game.objs[i];
+    o.y += game.speed * game.dt * (o.type===TYPE.CAR? o.speed:1);
+
+    if(o.y > H + 220*DPR){ game.objs.splice(i,1); continue; }
+
+    const ox = laneX(o.lane);
+
+    if(o.type===TYPE.CAR){
+      const ow = o.w, oh = o.h, oxl = ox-ow/2, oyt = o.y - oh/2;
+      const hit = !(px>oxl+ow || px+pw<oxl || pyTop>oyt+oh || pyTop+ph<oyt);
+      if(hit){
+        if(game.power.shield>0){
+          // destroy obstacle and consume shield
+          game.objs.splice(i,1); game.power.shield = 0; beep(260,0.06,'sine',0.04);
+          continue;
+        } else {
+          return gameOver('Colisão fatal! Você atingiu um carro.');
+        }
+      }
+      // Verificar colisão entre carros inimigos
+      for (let j = 0; j < game.objs.length; j++) {
+        if (j !== i) {
+          const o2 = game.objs[j];
+          if (o2.type === TYPE.CAR) {
+            const ow2=o2.w, oh2=o2.h;
+            const ox2=laneX(o2.lane)-ow2/2, oy2=o2.y-oh2/2;
+            const overlap = !(oxl+ow < ox2 || oxl > ox2+ow2 || oyt+oh < oy2 || oyt > oy2+oh2);
+            if (overlap) {
+              spawnParticles(ox, o.y, '#ffcc00');
+              game.objs.splice(i,1);
+              break;
+            }
+          }
+        }
+      }
+    } else if(o.type===TYPE.POTHOLE){
+      const r=o.r; const dx=game.x-ox, dy=(py+ph*0.2)-o.y; const d2=dx*dx+dy*dy;
+      if(game.onGround && d2 < (r+pw*0.22)*(r+pw*0.22)){
+        game.baseSpeed = Math.max(560, game.baseSpeed - 70);
+        game.gap = clamp(game.gap - 18,0,200);
+        game.fuel = Math.max(0, game.fuel - 0.05);
+        game.shake = 10*DPR; vibrate(50); beep(180,0.08,'square',0.03);
+        game.objs.splice(i,1); continue;
+      }
+    } else if(o.type===TYPE.COIN){
+      o.spin += game.dt*8;
+      const r=o.r*0.9; const dx=game.x-ox, dy=py-o.y; if(dx*dx+dy*dy < (r+pw*0.12)*(r+pw*0.12)){
+        game.coins++; game.bank++; updateMissions('coins'); beep(900,0.035,'triangle',0.03); game.objs.splice(i,1); continue;
+      } else if(game.power.magnet>0){
+        // magnet attracts coins
+        const towardX = lerp(ox, game.x, 0.04);
+        o.lane = o.lane; o.y += (game.y - o.y)*0.02;
+        o._attractX = towardX;
+      }
+    } else if(o.type===TYPE.FUEL){
+      o.wob += game.dt;
+      const r=o.r; const dx=game.x-ox, dy=py-o.y; if(dx*dx+dy*dy < (r+pw*0.16)*(r+pw*0.16)){
+        game.fuel = clamp(game.fuel + 0.35, 0, 1); beep(520,0.07,'sine',0.035); game.objs.splice(i,1); continue;
+      }
+    } else if(o.type===TYPE.POWER){
+      const r=o.r; const dx=game.x-ox, dy=py-o.y; if(dx*dx+dy*dy < (r+pw*0.14)*(r+pw*0.14)){
+        // apply power
+        if(o.kind==='magnet'){ game.power.magnet = 6; beep(1400,0.08,'sine',0.04); }
+        else if(o.kind==='shield'){ game.power.shield = 5; beep(900,0.08,'square',0.04); }
+        else if(o.kind==='turbo'){ game.boost = Math.max(game.boost, 1.2); beep(300,0.06,'sawtooth',0.04); }
+        game.objs.splice(i,1); continue;
+      }
+    }
+  }
+
+  // police catch check
+  game.gap = clamp(game.gap - (0.08 + (boosting? -0.04:0)) * game.dt, game.gapMin, game.gapMax);
+  if(game.gap <= 0.5) return gameOver('Você foi pego pela polícia!');
+
+  if(game.fuel <= 0) return gameOver('A gasolina acabou.');
+
+  // shake decay
+  game.shake = Math.max(0, game.shake - 60*game.dt);
+
+  // HUD update
+  document.getElementById('coins').textContent = game.coins;
+  document.getElementById('score').textContent = Math.floor(game.dist);
+  document.getElementById('fuelFill').style.setProperty('--p', Math.floor(game.fuel*100));
+  const chaseP = clamp(100 - (game.gap/game.gapMax)*100, 0, 100);
+  document.getElementById('chaseFill').style.setProperty('--p', Math.floor(chaseP));
+
+  draw();
+  requestAnimationFrame(update);
+}
